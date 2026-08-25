@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.wyre-technology/rocketcyber-mcp",
+  "name": "io.github.WYRE-AI/rocketcyber-mcp",
   "title": "RocketCyber",
   "description": "MCP server for RocketCyber Managed SOC — incidents, alerts, agents, and customer telemetry.",
   "repository": {
-    "url": "https://github.com/wyre-technology/rocketcyber-mcp",
+    "url": "https://github.com/WYRE-AI/rocketcyber-mcp",
     "source": "github"
   },
   "version": "0.0.0",
-  "websiteUrl": "https://github.com/wyre-technology/rocketcyber-mcp",
+  "websiteUrl": "https://github.com/WYRE-AI/rocketcyber-mcp",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/wyre-technology/rocketcyber-mcp:0.0.0",
+      "identifier": "ghcr.io/wyre-ai/rocketcyber-mcp:0.0.0",
       "transport": {
         "type": "stdio"
       },

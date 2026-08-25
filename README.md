@@ -30,9 +30,9 @@ MCP (Model Context Protocol) server for the [RocketCyber](https://www.rocketcybe
 >    - **DigitalOcean App Platform** → set an encrypted env var named **`GITHUB_TOKEN`**
 >      with scope **Build Time** to your PAT (the Dockerfile reads it for the install).
 
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/wyre-technology/rocketcyber-mcp/tree/main)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/WYRE-AI/rocketcyber-mcp/tree/main)
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/wyre-technology/rocketcyber-mcp)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/WYRE-AI/rocketcyber-mcp)
 
 ## Installation
 
