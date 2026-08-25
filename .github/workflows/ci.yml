@@ -148,8 +148,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/wyre-technology/rocketcyber-mcp:latest
-            ghcr.io/wyre-technology/rocketcyber-mcp:v${{ steps.version.outputs.version }}
+            ghcr.io/wyre-ai/rocketcyber-mcp:latest
+            ghcr.io/wyre-ai/rocketcyber-mcp:v${{ steps.version.outputs.version }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
             COMMIT_SHA=${{ github.sha }}
@@ -158,20 +158,31 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    name: Deploy to Azure Container Apps
-    needs: [release, docker]
-    if: needs.release.outputs.released == 'true'
-    permissions:
-      id-token: write
-      contents: read
-    uses: wyre-technology/.github/.github/workflows/mcp-server-deploy.yml@198605d0575e27374cf9b67fba3aa8c7b91de2c0
-    with:
-      vendor-slug: rocketcyber
-      image-name: ghcr.io/wyre-technology/rocketcyber-mcp
-      digest: ${{ needs.docker.outputs.digest }}
-      version: ${{ needs.release.outputs.version }}
-    secrets: inherit
+  # DEPLOY TEMPORARILY DISABLED (2026-08 org migration).
+  #
+  # The gwp-rocketcyber Container App still runs in the LEGACY Azure tenant,
+  # while this org's AZURE_* secrets point at the new WYRE AI tenant
+  # (60445ed9-…, subscription c09af79d-…) where no `mcp-gateway-prod` resource
+  # group exists yet. Deploying would fail with ResourceGroupNotFound.
+  # Re-enable once either (a) the fleet infra moves to the WYRE AI
+  # subscription, or (b) the legacy tenant's deploy app gains a
+  # repo:WYRE-AI/* federated credential and the AZURE_* secrets are
+  # repo/environment-scoped back to the legacy tenant.
+  #
+  # deploy:
+  #   name: Deploy to Azure Container Apps
+  #   needs: [release, docker]
+  #   if: needs.release.outputs.released == 'true'
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   uses: WYRE-AI/.github/.github/workflows/mcp-server-deploy.yml@07bc1921cbd01ad8a079fe8a3dd28180080870d5
+  #   with:
+  #     vendor-slug: rocketcyber
+  #     image-name: ghcr.io/wyre-ai/rocketcyber-mcp
+  #     digest: ${{ needs.docker.outputs.digest }}
+  #     version: ${{ needs.release.outputs.version }}
+  #   secrets: inherit
 
   mcp-registry:
     name: Publish to MCP Registry
@@ -193,7 +204,7 @@ jobs:
       - name: Stamp version into server.json
         run: |
           jq --arg v "$VERSION" \
-            '.version = $v | .packages[0].identifier = "ghcr.io/wyre-technology/rocketcyber-mcp:v" + $v' \
+            '.version = $v | .packages[0].identifier = "ghcr.io/wyre-ai/rocketcyber-mcp:v" + $v' \
             server.json > server.json.tmp
           mv server.json.tmp server.json
           cat server.json
@@ -206,5 +217,5 @@ jobs:
       - name: Verify registry listing
         run: |
           sleep 5
-          curl -sf "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.wyre-technology/rocketcyber-mcp" \
+          curl -sf "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.WYRE-AI/rocketcyber-mcp" \
             | jq '.servers[]?.server | {name, version}'

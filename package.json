@@ -1,5 +1,5 @@
 {
-  "name": "@wyre-technology/rocketcyber-mcp",
+  "name": "@wyre-ai/rocketcyber-mcp",
   "version": "1.1.7",
   "description": "MCP (Model Context Protocol) server for RocketCyber Managed SOC platform",
   "main": "dist/entry.js",
