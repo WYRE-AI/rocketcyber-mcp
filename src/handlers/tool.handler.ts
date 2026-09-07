@@ -120,6 +120,19 @@ export class RocketCyberToolHandler {
         return { result: r, message };
       }],
       ['rocketcyber_list_events', async (a) => {
+        // The underlying API 400s on this specific endpoint if appId is
+        // missing ("appId is required") - checked here explicitly rather
+        // than relying solely on inputSchema.required, since not every MCP
+        // client validates a tool call's arguments against its schema
+        // before sending it. Failing fast with a clear message beats a
+        // caught HTTP 400 whose body (and the real reason) node-rocketcyber
+        // doesn't surface to callers - see its own error handling.
+        if (a?.appId === undefined || a?.appId === null) {
+          throw new Error(
+            'rocketcyber_list_events requires appId - call rocketcyber_list_apps to see this account\'s ' +
+            'app IDs, or rocketcyber_get_event_summary (no appId needed) to see per-app event counts first.'
+          );
+        }
         const r = await s.listEvents(a);
         return { result: r, message: `Retrieved events (${r.data?.length || 0} results, page ${r.currentPage || 1} of ${r.totalPages || 1})` };
       }],

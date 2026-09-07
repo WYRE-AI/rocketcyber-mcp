@@ -64,10 +64,17 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   },
   {
     name: 'rocketcyber_list_events',
-    description: 'List security events in RocketCyber',
+    description: 'List security events in RocketCyber. Requires appId - unlike every other list_* tool here, ' +
+      'the underlying RocketCyber API rejects this specific endpoint outright (400 "appId is required") if it\'s ' +
+      'omitted, regardless of any other filter supplied. Each RocketCyber "app" is a distinct monitored ' +
+      'integration/module (Defender Manager, Office 365 Risk Detection, Datto Ransomware Detection, etc.) - events ' +
+      'are always scoped to exactly one. Call rocketcyber_list_apps to see every app this account has and its ID, ' +
+      'or rocketcyber_get_event_summary first (no appId needed) to see actual per-app event counts for this ' +
+      'account and pick the one with data rather than guessing.',
     inputSchema: {
       type: 'object',
       properties: {
+        appId: { type: 'number', description: 'REQUIRED. The RocketCyber app/module ID to scope events to (e.g. 34 = Defender Manager). See the tool description for how to discover the right value.' },
         page: { type: 'number', description: 'Page number' },
         pageSize: { type: 'number', description: 'Results per page' },
         sort: { type: 'string', description: 'Sort field' },
@@ -77,7 +84,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
         dates: { type: 'string', description: 'Date range filter' },
         hostname: { type: 'string', description: 'Filter by hostname' }
       },
-      required: []
+      required: ['appId']
     }
   },
   {

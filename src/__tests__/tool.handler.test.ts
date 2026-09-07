@@ -294,3 +294,63 @@ describe("rocketcyber_list_incidents verbose stripping", () => {
     expect(url.searchParams.get("status")).toBe("open");
   });
 });
+
+function eventsResponse() {
+  return {
+    data: [{ id: 1, appId: 34, title: "Malicious file blocked" }],
+    totalCount: 1,
+    currentPage: 1,
+    totalPages: 1,
+  };
+}
+
+function makeEventsHandler(response: unknown) {
+  const listEvents = vi.fn().mockResolvedValue(response);
+  const service = { listEvents } as unknown as RocketCyberService;
+  return { handler: new RocketCyberToolHandler(service, logger), listEvents };
+}
+
+describe("rocketcyber_list_events appId requirement", () => {
+  it("rejects a call with no appId before reaching the service", async () => {
+    const { handler, listEvents } = makeEventsHandler(eventsResponse());
+    const result = await handler.callTool("rocketcyber_list_events", {});
+    expect(result.isError).toBe(true);
+    const body = JSON.parse(result.content[0].text);
+    expect(body.error).toMatch(/appId/);
+    expect(body.error).toMatch(/rocketcyber_list_apps/);
+    expect(listEvents).not.toHaveBeenCalled();
+  });
+
+  it("rejects appId: null the same way as a missing appId", async () => {
+    const { handler, listEvents } = makeEventsHandler(eventsResponse());
+    const result = await handler.callTool("rocketcyber_list_events", { appId: null });
+    expect(result.isError).toBe(true);
+    expect(listEvents).not.toHaveBeenCalled();
+  });
+
+  it("calls through to the service when appId is provided", async () => {
+    const { handler, listEvents } = makeEventsHandler(eventsResponse());
+    const result = await handler.callTool("rocketcyber_list_events", { appId: 34, page: 2 });
+    expect(result.isError).toBeUndefined();
+    expect(listEvents).toHaveBeenCalledWith({ appId: 34, page: 2 });
+    const body = JSON.parse(result.content[0].text);
+    expect(body.message).toBe("Retrieved events (1 results, page 1 of 1)");
+  });
+
+  it("treats appId: 0 as a valid, provided value", async () => {
+    const { handler, listEvents } = makeEventsHandler(eventsResponse());
+    const result = await handler.callTool("rocketcyber_list_events", { appId: 0 });
+    expect(result.isError).toBeUndefined();
+    expect(listEvents).toHaveBeenCalledWith({ appId: 0 });
+  });
+});
+
+describe("rocketcyber_list_events tool definition", () => {
+  it("declares appId as required and documents why", async () => {
+    const { TOOL_DEFINITIONS } = await import("../handlers/tool.definitions.js");
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === "rocketcyber_list_events")!;
+    expect(tool.inputSchema.required).toEqual(["appId"]);
+    expect(tool.inputSchema.properties.appId).toMatchObject({ type: "number" });
+    expect(tool.description).toMatch(/appId/);
+  });
+});
