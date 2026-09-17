@@ -13,6 +13,20 @@ import { Logger } from "../utils/logger.js";
 
 const logger = new Logger("error");
 
+// rocketcyber_list_incidents and rocketcyber_list_events carry
+// externally-authored text, so their results come back wrapped in the
+// untrusted-content boundary (see src/utils/untrusted-content.ts). Strip it
+// to get back the plain JSON body these tests were written against.
+const OPEN_TAG = "<rocketcyber-data>";
+const CLOSE_TAG = "</rocketcyber-data>";
+
+function unwrap(text: string): string {
+  if (!text.startsWith(OPEN_TAG)) return text;
+  const start = OPEN_TAG.length + 1; // past the tag and its newline
+  const end = text.indexOf(`\n${CLOSE_TAG}`);
+  return text.slice(start, end);
+}
+
 const TRUNCATION_SUFFIX = "… [truncated — pass verbose: true for full text]";
 
 // Deterministic word-based free text, comfortably longer than 300 characters.
@@ -62,7 +76,7 @@ async function callListIncidents(
 ): Promise<{ message: string; data: any }> {
   const result = await handler.callTool("rocketcyber_list_incidents", args);
   expect(result.isError).toBeUndefined();
-  return JSON.parse(result.content[0].text);
+  return JSON.parse(unwrap(result.content[0].text));
 }
 
 /** Strip the truncation suffix and return the kept text. */
@@ -123,7 +137,7 @@ describe("rocketcyber_list_incidents verbose mode", () => {
     const response = incidentsResponse();
     const { handler } = makeHandler(response);
     const result = await handler.callTool("rocketcyber_list_incidents", { verbose: true });
-    expect(result.content[0].text).toBe(
+    expect(unwrap(result.content[0].text)).toBe(
       JSON.stringify({
         message: "Retrieved incidents (2 results, page 3 of 2)",
         data: response,
@@ -186,7 +200,10 @@ describe("rocketcyber_list_incidents response byte budget (compact mode)", () =>
     const { handler } = makeHandler(bigIncidentsResponse(100));
     const result = await handler.callTool("rocketcyber_list_incidents", { pageSize: 100 });
     expect(result.isError).toBeUndefined();
-    const text = result.content[0].text;
+    // The 40K budget bounds the serialized incident payload itself; the
+    // untrusted-content wrapper adds a small fixed amount of markup on top
+    // of that, so the size assertion is against the unwrapped text.
+    const text = unwrap(result.content[0].text);
     expect(text.length).toBeLessThanOrEqual(RESPONSE_BUDGET);
 
     const body = JSON.parse(text);
@@ -206,7 +223,7 @@ describe("rocketcyber_list_incidents response byte budget (compact mode)", () =>
   it("fills the budget tightly: keeping one more incident would overflow", async () => {
     const { handler } = makeHandler(bigIncidentsResponse(100));
     const result = await handler.callTool("rocketcyber_list_incidents", { pageSize: 100 });
-    const text = result.content[0].text;
+    const text = unwrap(result.content[0].text);
     const body = JSON.parse(text);
     // Every incident serializes to the same length, so one more incident
     // would add exactly (item + comma) characters.
@@ -245,7 +262,7 @@ describe("rocketcyber_list_incidents response byte budget (compact mode)", () =>
     const response = bigIncidentsResponse(100);
     const { handler } = makeHandler(response);
     const result = await handler.callTool("rocketcyber_list_incidents", { verbose: true, pageSize: 100 });
-    expect(result.content[0].text).toBe(
+    expect(unwrap(result.content[0].text)).toBe(
       JSON.stringify({
         message: "Retrieved incidents (100 results, page 1 of 79)",
         data: response,
@@ -333,7 +350,7 @@ describe("rocketcyber_list_events appId requirement", () => {
     const result = await handler.callTool("rocketcyber_list_events", { appId: 34, page: 2 });
     expect(result.isError).toBeUndefined();
     expect(listEvents).toHaveBeenCalledWith({ appId: 34, page: 2 });
-    const body = JSON.parse(result.content[0].text);
+    const body = JSON.parse(unwrap(result.content[0].text));
     expect(body.message).toBe("Retrieved events (1 results, page 1 of 1)");
   });
 

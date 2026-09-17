@@ -1,5 +1,6 @@
 import { RocketCyberService } from '../services/rocketcyber.service.js';
 import { Logger } from '../utils/logger.js';
+import { wrapUntrustedContent } from '../utils/untrusted-content.js';
 import { TOOL_DEFINITIONS, McpTool } from './tool.definitions.js';
 
 export { McpTool };
@@ -167,7 +168,7 @@ export class RocketCyberToolHandler {
       if (!handler) throw new Error(`Unknown tool: ${name}`);
 
       const { result, message } = await handler(args);
-      const responseText = JSON.stringify({ message, data: result });
+      const responseText = wrapUntrustedContent(name, JSON.stringify({ message, data: result }));
 
       this.logger.debug(`Successfully executed tool: ${name}`);
       return { content: [{ type: 'text', text: responseText }] };
