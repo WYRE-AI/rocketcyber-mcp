@@ -33,7 +33,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.31.0",
-    "@wyre-technology/node-rocketcyber": "latest",
+    "@wyre-ai/node-rocketcyber": "latest",
     "winston": "^3.11.0",
     "zod": "^4.6.5"
   },

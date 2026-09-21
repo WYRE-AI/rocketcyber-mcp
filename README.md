@@ -14,7 +14,7 @@ MCP (Model Context Protocol) server for the [RocketCyber](https://www.rocketcybe
 ## One-Click Deployment
 
 > [!IMPORTANT]
-> **Before you click:** this server depends on `@wyre-technology/node-rocketcyber`,
+> **Before you click:** this server depends on `@wyre-ai/node-rocketcyber`,
 > which is hosted on the **GitHub Packages** npm registry. GitHub Packages has no
 > anonymous access — even though the package is public, every `npm install` needs a
 > token. The cloud builder runs `npm install` for you, so you must give it one, or
@@ -23,7 +23,7 @@ MCP (Model Context Protocol) server for the [RocketCyber](https://www.rocketcybe
 > 1. Create a GitHub **Personal Access Token** with the `read:packages` scope
 >    ([classic token](https://github.com/settings/tokens/new?scopes=read:packages&description=rocketcyber-mcp%20deploy)).
 >    Any GitHub account works — you do **not** need to be a member of the
->    `wyre-technology` org to read its public packages.
+>    `WYRE-AI` org to read its public packages.
 > 2. Add it as a build variable when prompted by the deploy flow:
 >    - **Cloudflare Workers** → set a build variable named **`NODE_AUTH_TOKEN`** to your PAT
 >      (Workers → Settings → Build → Variables and Secrets).
@@ -36,7 +36,7 @@ MCP (Model Context Protocol) server for the [RocketCyber](https://www.rocketcybe
 
 ## Installation
 
-This project depends on `@wyre-technology/node-rocketcyber`, published to the
+This project depends on `@wyre-ai/node-rocketcyber`, published to the
 **GitHub Packages** npm registry, which requires a token even for public packages.
 Authenticate once, then install:
 
@@ -48,7 +48,7 @@ npm install
 npm run build
 ```
 
-The repo's `.npmrc` already points the `@wyre-technology` scope at GitHub Packages and
+The repo's `.npmrc` already points the `@wyre-ai` scope at GitHub Packages and
 reads the token from `NODE_AUTH_TOKEN`, so no further config is needed.
 
 ## Configuration

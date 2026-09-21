@@ -1,4 +1,4 @@
-import { RocketCyberClient } from '@wyre-technology/node-rocketcyber';
+import { RocketCyberClient } from '@wyre-ai/node-rocketcyber';
 import { McpServerConfig } from '../types/mcp.js';
 import { Logger } from '../utils/logger.js';
 
