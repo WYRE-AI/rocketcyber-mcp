@@ -4,7 +4,7 @@ MCP (Model Context Protocol) server for the [RocketCyber](https://www.rocketcybe
 
 ## Features
 
-- 10 read-only tools covering all RocketCyber API resources
+- 10 read-only tools covering all RocketCyber API resources, each annotated `readOnlyHint: true` so MCP clients (e.g. Microsoft 365 Copilot) can skip per-call confirmation prompts
 - 3 MCP resources for quick data access
 - Dual transport: stdio (default) and HTTP Streamable
 - Lazy SDK initialization on first tool call
@@ -91,18 +91,20 @@ ROCKETCYBER_API_KEY=your-api-key MCP_TRANSPORT=http npm start
 
 ## Tools
 
-| Tool | Description |
-|---|---|
-| `rocketcyber_test_connection` | Test the connection to RocketCyber API |
-| `rocketcyber_get_account` | Get account information |
-| `rocketcyber_list_agents` | List monitored agents/endpoints |
-| `rocketcyber_list_incidents` | List security incidents |
-| `rocketcyber_list_events` | List security events |
-| `rocketcyber_get_event_summary` | Get event summary/statistics |
-| `rocketcyber_list_firewalls` | List firewall devices |
-| `rocketcyber_list_apps` | List managed apps |
-| `rocketcyber_get_defender` | Get Windows Defender status |
-| `rocketcyber_get_office` | Get Office 365 status |
+Every tool below only reads data (no tool issues a write to the RocketCyber API), so each is annotated `annotations: { readOnlyHint: true }` in the `tools/list` response. MCP clients that honor `readOnlyHint` — Microsoft 365 Copilot / Copilot Studio among them — use this to skip the per-call confirmation prompt they'd otherwise show before every tool call.
+
+| Tool | Description | `readOnlyHint` |
+|---|---|---|
+| `rocketcyber_test_connection` | Test the connection to RocketCyber API | true |
+| `rocketcyber_get_account` | Get account information | true |
+| `rocketcyber_list_agents` | List monitored agents/endpoints | true |
+| `rocketcyber_list_incidents` | List security incidents | true |
+| `rocketcyber_list_events` | List security events | true |
+| `rocketcyber_get_event_summary` | Get event summary/statistics | true |
+| `rocketcyber_list_firewalls` | List firewall devices | true |
+| `rocketcyber_list_apps` | List managed apps | true |
+| `rocketcyber_get_defender` | Get Windows Defender status | true |
+| `rocketcyber_get_office` | Get Office 365 status | true |
 
 ## Resources
 

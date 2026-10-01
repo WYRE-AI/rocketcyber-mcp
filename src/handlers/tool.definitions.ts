@@ -1,6 +1,9 @@
 export interface McpTool {
   name: string;
   description: string;
+  annotations?: {
+    readOnlyHint?: boolean;
+  };
   inputSchema: {
     type: string;
     properties: Record<string, any>;
@@ -12,11 +15,13 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_test_connection',
     description: 'Test the connection to RocketCyber API',
+    annotations: { readOnlyHint: true },
     inputSchema: { type: 'object', properties: {}, required: [] }
   },
   {
     name: 'rocketcyber_get_account',
     description: 'Get RocketCyber account information',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -28,6 +33,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_list_agents',
     description: 'List monitored agents/endpoints in RocketCyber',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -46,6 +52,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_list_incidents',
     description: 'List security incidents in RocketCyber. By default, long free-text fields (description, remediation) are truncated to ~300 characters, and the total response is capped at ~40,000 characters (a size cap) — if a page does not fit, only the first incidents are returned and the message says how many; use a smaller pageSize with page to paginate through the rest. Pass verbose: true for full untruncated text.',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -71,6 +78,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
       'are always scoped to exactly one. Call rocketcyber_list_apps to see every app this account has and its ID, ' +
       'or rocketcyber_get_event_summary first (no appId needed) to see actual per-app event counts for this ' +
       'account and pick the one with data rather than guessing.',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -90,6 +98,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_get_event_summary',
     description: 'Get event summary/statistics from RocketCyber',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -102,6 +111,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_list_firewalls',
     description: 'List firewall devices in RocketCyber',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -119,6 +129,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_list_apps',
     description: 'List managed apps in RocketCyber',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -135,6 +146,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_get_defender',
     description: 'Get Windows Defender status from RocketCyber',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -146,6 +158,7 @@ export const TOOL_DEFINITIONS: McpTool[] = [
   {
     name: 'rocketcyber_get_office',
     description: 'Get Office 365 status from RocketCyber',
+    annotations: { readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
