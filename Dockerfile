@@ -59,15 +59,16 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# Set environment variables
+# 0.0.0.0 is the in-container bind. Startup still refuses to listen without a
+# real CONDUIT_S2S_SECRET. MCP_ALLOW_INSECURE_DEV=1 forces 127.0.0.1 even if
+# this host is set. AUTH_MODE=gateway never falls back to image env credentials.
 ENV NODE_ENV=production
 ENV LOG_LEVEL=info
 ENV LOG_FORMAT=json
 ENV MCP_TRANSPORT=http
 ENV MCP_HTTP_PORT=8080
 ENV MCP_HTTP_HOST=0.0.0.0
-# Default to env mode for backward compatibility; set to 'gateway' for hosted deployment
-ENV AUTH_MODE=env
+ENV AUTH_MODE=gateway
 
 # Define volume for logs
 VOLUME ["/app/logs"]

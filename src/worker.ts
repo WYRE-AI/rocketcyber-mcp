@@ -15,8 +15,9 @@
  *    - ROCKETCYBER_API_KEY
  *    - ROCKETCYBER_REGION (optional)
  *
- * `tools/list` and `initialize` work without credentials; only `tools/call`
- * requires them.
+ * In gateway mode every /mcp request requires X-RocketCyber-API-Key and does
+ * not fall back to ROCKETCYBER_API_KEY. In env mode, tools/list and
+ * initialize work without credentials; tools/call requires the env key.
  */
 
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -43,6 +44,13 @@ const CORS_HEADERS: Record<string, string> = {
     "Content-Type, Accept, Authorization, Mcp-Session-Id, MCP-Protocol-Version, X-RocketCyber-API-Key, X-RocketCyber-Region",
   "Access-Control-Expose-Headers": "Mcp-Session-Id",
 };
+
+function headerValue(request: Request, name: string): string | undefined {
+  const value = request.headers.get(name);
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -99,8 +107,8 @@ export default {
 
       let credentials: GatewayCredentials | undefined;
       if (isGatewayMode) {
-        const apiKey = request.headers.get("x-rocketcyber-api-key") ?? undefined;
-        const region = request.headers.get("x-rocketcyber-region") ?? undefined;
+        const apiKey = headerValue(request, "x-rocketcyber-api-key");
+        const region = headerValue(request, "x-rocketcyber-region");
         if (!apiKey) {
           return json(
             {

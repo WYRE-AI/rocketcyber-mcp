@@ -19,7 +19,7 @@ async function main() {
       hasCredentials: !!mcpConfig.rocketcyber.apiKey
     });
 
-    if (!mcpConfig.rocketcyber.apiKey) {
+    if (envConfig.auth.mode !== 'gateway' && !mcpConfig.rocketcyber.apiKey) {
       logger.warn('Missing RocketCyber credentials. Tools will return errors until ROCKETCYBER_API_KEY is configured.');
     }
 
