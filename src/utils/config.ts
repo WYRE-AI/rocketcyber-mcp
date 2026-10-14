@@ -47,7 +47,10 @@ export function parseCredentialsFromHeaders(
 ): GatewayCredentials {
   const getHeader = (name: string): string | undefined => {
     const value = headers[name] || headers[name.toLowerCase()];
-    return Array.isArray(value) ? value[0] : value;
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (typeof raw !== 'string') return undefined;
+    const trimmed = raw.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
   };
 
   return {
@@ -76,6 +79,9 @@ export function loadEnvironmentConfig(): EnvironmentConfig {
     transport: {
       type: transportType,
       port: parseInt(process.env.MCP_HTTP_PORT || '8080', 10),
+      // Historical bind when MCP_HTTP_HOST is unset. HTTP startup
+      // (src/mcp/http-auth.ts) forces 127.0.0.1 when there is no real
+      // CONDUIT_S2S_SECRET. A configured secret honors this value.
       host: process.env.MCP_HTTP_HOST || '0.0.0.0'
     },
     logging: {

@@ -53,15 +53,40 @@ reads the token from `NODE_AUTH_TOKEN`, so no further config is needed.
 
 ## Configuration
 
+Copy [`.env.example`](.env.example) and set the variables below.
+
 | Environment Variable | Required | Default | Description |
 |---|---|---|---|
-| `ROCKETCYBER_API_KEY` | Yes | - | RocketCyber API key |
+| `ROCKETCYBER_API_KEY` | For stdio and `AUTH_MODE=env` | - | RocketCyber API key |
 | `ROCKETCYBER_REGION` | No | `us` | API region: `us` or `eu` |
 | `MCP_TRANSPORT` | No | `stdio` | Transport type: `stdio` or `http` |
+| `AUTH_MODE` | No | `env` (image and Compose set `gateway`) | `gateway` requires `X-RocketCyber-API-Key` on each `/mcp` request and never falls back to `ROCKETCYBER_*`. `env` uses those variables only after S2S auth succeeds. |
+| `CONDUIT_S2S_SECRET` | Yes for HTTP | - | Service-to-service secret. The HTTP server logs an error and exits non-zero when this is empty or a known placeholder (`changeme`, `secret`, `replace-me`, `your-s2s-secret`, and the other example values). Generate one with `openssl rand -hex 32`. Compose will not start without it. The value is never logged. |
+| `MCP_ALLOW_INSECURE_DEV` | No | - | Set to exactly `1` only for local development to start HTTP without `CONDUIT_S2S_SECRET`. The process logs a warning, does not enforce `X-Gateway-S2S`, and binds `127.0.0.1` only. A non-loopback `MCP_HTTP_HOST` is overridden. A known placeholder secret still refuses to start. |
 | `MCP_HTTP_PORT` | No | `8080` | HTTP port (when using http transport) |
-| `MCP_HTTP_HOST` | No | `0.0.0.0` | HTTP host (when using http transport) |
+| `MCP_HTTP_HOST` | No | `0.0.0.0` when a real secret is set | Bind address when `CONDUIT_S2S_SECRET` is set. Unset keeps `0.0.0.0`. Without a secret, the dev bypass ignores this and binds `127.0.0.1`. The container image sets `0.0.0.0`. |
 | `LOG_LEVEL` | No | `info` | Log level: `error`, `warn`, `info`, `debug` |
 | `LOG_FORMAT` | No | `simple` | Log format: `json` or `simple` |
+
+`/health` stays unauthenticated and does not read credentials. The stdio transport does not use `CONDUIT_S2S_SECRET`.
+
+### HTTP authentication
+
+With `MCP_TRANSPORT=http` and a real `CONDUIT_S2S_SECRET`, every `/mcp` request must include `X-Gateway-S2S`. The check is `verifyS2sHeader` in [`src/mcp/s2s-verify.ts`](src/mcp/s2s-verify.ts): the header value is `t=<unix seconds>,v1=<hex>`, where the hex is HMAC-SHA256 of the literal string `t=<unix seconds>` keyed with `CONDUIT_S2S_SECRET` (64 lowercase hex characters). The timestamp must be within 300 seconds of the server clock. A missing or invalid header is HTTP 401, before vendor credentials are read.
+
+```bash
+TS=$(date +%s)
+SIG=$(printf 't=%s' "$TS" | openssl dgst -sha256 -hmac "$CONDUIT_S2S_SECRET" -hex | awk '{print $NF}')
+curl -sS http://127.0.0.1:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H "X-Gateway-S2S: t=${TS},v1=${SIG}" \
+  -H "X-RocketCyber-API-Key: $ROCKETCYBER_API_KEY" \
+  -H "X-RocketCyber-Region: us" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+In `AUTH_MODE=gateway`, `/mcp` also requires `X-RocketCyber-API-Key` (`X-RocketCyber-Region` is optional). That header is the only credential source for the request. A missing or blank API key is HTTP 401 and does not fall back to `ROCKETCYBER_API_KEY`. `AUTH_MODE=env` still requires the signed `X-Gateway-S2S` header, then uses `ROCKETCYBER_API_KEY` from the environment.
 
 ## Usage
 
@@ -85,8 +110,47 @@ Add to your Claude Desktop configuration (`claude_desktop_config.json`):
 
 ### HTTP Transport
 
+HTTP refuses to start until `CONDUIT_S2S_SECRET` is a real secret (not a known placeholder). Publish the port on loopback.
+
 ```bash
-ROCKETCYBER_API_KEY=your-api-key MCP_TRANSPORT=http npm start
+# Single-tenant HTTP. Uses ROCKETCYBER_API_KEY after X-Gateway-S2S verifies.
+CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" \
+  ROCKETCYBER_API_KEY=your-api-key \
+  MCP_TRANSPORT=http \
+  npm start
+
+# Local HTTP only, without a service-to-service secret. Always binds 127.0.0.1.
+MCP_TRANSPORT=http MCP_ALLOW_INSECURE_DEV=1 npm start
+```
+
+### Docker
+
+The image listens on `0.0.0.0` inside the container (`MCP_HTTP_HOST`) and defaults to `AUTH_MODE=gateway`. Publish the port on loopback and pass a real S2S secret. In gateway mode, RocketCyber credentials arrive on each request as headers; they are not read from the environment.
+
+```bash
+docker build -t rocketcyber-mcp --build-arg GITHUB_TOKEN="$GITHUB_TOKEN" .
+docker run \
+  -e CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" \
+  -p 127.0.0.1:8080:8080 \
+  rocketcyber-mcp
+```
+
+Compose refuses to start when `CONDUIT_S2S_SECRET` is unset. The gateway service sets `AUTH_MODE=gateway`, does not inject `ROCKETCYBER_API_KEY`, and publishes `127.0.0.1:8080:8080`:
+
+```bash
+CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" GITHUB_TOKEN="$GITHUB_TOKEN" docker compose up
+```
+
+Single-tenant HTTP (`AUTH_MODE=env`) still requires the S2S secret, then uses `ROCKETCYBER_API_KEY`. It is separate from the gateway Compose service above.
+
+```bash
+docker run \
+  -e CONDUIT_S2S_SECRET="$CONDUIT_S2S_SECRET" \
+  -e AUTH_MODE=env \
+  -e ROCKETCYBER_API_KEY=your-api-key \
+  -e ROCKETCYBER_REGION=us \
+  -p 127.0.0.1:8080:8080 \
+  rocketcyber-mcp
 ```
 
 ## Tools

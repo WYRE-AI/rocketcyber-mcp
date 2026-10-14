@@ -1,4 +1,5 @@
 import { createServer, IncomingMessage, ServerResponse, Server as HttpServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -19,6 +20,14 @@ import { EnvironmentConfig, parseCredentialsFromHeaders, GatewayCredentials } fr
 import { RocketCyberResourceHandler } from '../handlers/resource.handler.js';
 import { RocketCyberToolHandler } from '../handlers/tool.handler.js';
 import { verifyS2sHeader, S2S_HEADER } from './s2s-verify.js';
+import { resolveHttpListen } from './http-auth.js';
+
+function headerValue(value: string | string[] | undefined): string | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 export class RocketCyberMcpServer {
   private server: Server;
@@ -189,14 +198,32 @@ export class RocketCyberMcpServer {
    * clients (via the gateway) never hit "Server already initialized".
    */
   private async startHttpTransport(): Promise<void> {
-    const port = this.envConfig?.transport?.port || 8080;
-    const host = this.envConfig?.transport?.host || '0.0.0.0';
+    // Port 0 is a real bind (ephemeral). `||` would turn it into 8080.
+    const configuredPort = this.envConfig?.transport?.port;
+    const port = typeof configuredPort === 'number' && Number.isFinite(configuredPort)
+      ? configuredPort
+      : 8080;
+    // Fail closed before listen. Empty and known-placeholder secrets refuse
+    // to start. MCP_ALLOW_INSECURE_DEV=1 may skip S2S and always binds
+    // 127.0.0.1. A real secret honors MCP_HTTP_HOST (unset stays 0.0.0.0).
+    // The secret value is never logged. stdio does not call this path.
+    const decision = resolveHttpListen(process.env);
+    if (!decision.ok) {
+      this.logger.error(decision.message);
+      process.exit(1);
+    }
+    for (const warning of decision.warnings) {
+      this.logger.error(warning);
+    }
+    const host = decision.host;
+    const s2sSecret = decision.secret;
     const isGatewayMode = this.envConfig?.auth?.mode === 'gateway';
 
     this.httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
-      // Health endpoint - no auth required
+      // Health endpoint — liveness only. No auth, and this handler must not
+      // read vendor credentials or the S2S secret.
       if (url.pathname === '/health') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -211,21 +238,17 @@ export class RocketCyberMcpServer {
       // MCP endpoint — stateless: fresh server + transport per request
       if (url.pathname === '/mcp') {
         // Gateway S2S verification (gateway#377 parity). Runs before any
-        // credential extraction — see src/mcp/s2s-verify.ts. Empty secret
-        // means S2S enforcement isn't provisioned for this vendor yet, so
-        // we don't call verifyS2sHeader at all (dark-by-default).
-        const s2sSecret = process.env.CONDUIT_S2S_SECRET || '';
-        if (s2sSecret) {
-          const s2sHeader = req.headers[S2S_HEADER] as string | undefined;
-          if (!verifyS2sHeader(s2sHeader, s2sSecret)) {
-            this.logger.warn('Rejected request with missing/invalid gateway S2S header');
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              error: 'Unauthorized',
-              message: 'Missing or invalid gateway S2S authentication header',
-            }));
-            return;
-          }
+        // credential extraction — see src/mcp/s2s-verify.ts. An empty secret
+        // is only reachable when MCP_ALLOW_INSECURE_DEV=1; startup refuses
+        // otherwise. A configured secret is always enforced.
+        if (s2sSecret && !verifyS2sHeader(headerValue(req.headers[S2S_HEADER]), s2sSecret)) {
+          this.logger.warn('Rejected request with missing/invalid gateway S2S header');
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            error: 'Unauthorized',
+            message: 'Missing or invalid X-Gateway-S2S header: this endpoint only accepts requests signed by the gateway.',
+          }));
+          return;
         }
 
         // Only POST is supported in stateless mode
@@ -295,8 +318,11 @@ export class RocketCyberMcpServer {
       res.end(JSON.stringify({ error: 'Not found', endpoints: ['/mcp', '/health'] }));
     });
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
+      const onError = (err: Error) => reject(err);
+      this.httpServer!.once('error', onError);
       this.httpServer!.listen(port, host, () => {
+        this.httpServer!.off('error', onError);
         this.logger.info(`RocketCyber MCP Server listening on http://${host}:${port}/mcp`);
         this.logger.info(`Health check available at http://${host}:${port}/health`);
         this.logger.info(`Authentication mode: ${isGatewayMode ? 'gateway (header-based)' : 'env (environment variables)'}`);
@@ -308,6 +334,13 @@ export class RocketCyberMcpServer {
   private extractGatewayCredentials(req: IncomingMessage): GatewayCredentials {
     const headers = req.headers as Record<string, string | string[] | undefined>;
     return parseCredentialsFromHeaders(headers);
+  }
+
+  /** Bound HTTP address after a successful HTTP start. */
+  getHttpAddress(): AddressInfo | null {
+    const address = this.httpServer?.address();
+    if (!address || typeof address === 'string') return null;
+    return address;
   }
 
   async stop(): Promise<void> {

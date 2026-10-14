@@ -95,8 +95,28 @@ describe("Cloudflare Worker entrypoint", () => {
         method: "tools/call",
         params: { name: "rocketcyber_get_account", arguments: {} },
       },
-      { AUTH_MODE: "gateway" }
+      { AUTH_MODE: "gateway", ROCKETCYBER_API_KEY: "env-key-must-not-be-used" }
     );
     expect(res.status).toBe(401);
+    const body = await res.text();
+    expect(body).toContain("X-RocketCyber-API-Key");
+    expect(body).not.toContain("env-key-must-not-be-used");
+  });
+
+  it("rejects a whitespace-only gateway credential header and does not use env credentials", async () => {
+    const res = await mcp(
+      {
+        jsonrpc: "2.0",
+        id: 5,
+        method: "tools/call",
+        params: { name: "rocketcyber_get_account", arguments: {} },
+      },
+      { AUTH_MODE: "gateway", ROCKETCYBER_API_KEY: "env-key-must-not-be-used" },
+      { "x-rocketcyber-api-key": "   " }
+    );
+    expect(res.status).toBe(401);
+    const body = await res.text();
+    expect(body).toContain("Missing credentials");
+    expect(body).not.toContain("env-key-must-not-be-used");
   });
 });
